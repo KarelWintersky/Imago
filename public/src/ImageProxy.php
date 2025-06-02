@@ -2,6 +2,8 @@
 
 namespace App\Imago;
 
+use RuntimeException;
+
 class ImageProxy
 {
     private array $config = [];
@@ -23,14 +25,25 @@ class ImageProxy
      *
      * @var array
      */
-    private array $requestParams = [];
+    public array $requestParams = [];
     private string $storageRoot;
     private string $cacheRoot;
 
-    public function __construct(array $config)
+    private ProfilePrototypeInterface $worker;
+
+    public function __construct(ProfilePrototypeInterface $worker, array $requestParams = [])
     {
-        $this->storageRoot = $config['STORAGE'];
-        $this->cacheRoot = $config['CACHE'];
+        $this->worker = $worker;
+        $this->config = $worker->getConfig();
+
+        $this->storageRoot = $this->config['STORAGE'];
+        $this->cacheRoot = $this->config['CACHE'];
+
+        $this->requestParams = $requestParams;
+
+        $this->jpeg_quality = $requestParams['quality'] ?? $this->jpeg_quality;
+
+        $this->worker = $worker;
     }
 
     /**
@@ -40,17 +53,14 @@ class ImageProxy
      */
     public static function getRequestParams():array
     {
-        $params = [
+        return [
             'project'   =>  $_GET['project'] ?? '',
             'file'      =>  $_GET['file'] ?? '',
             'width'     =>  (int)($_GET['width'] ?? 0),
             'height'    =>  (int)($_GET['height'] ?? 0),
             'format'    =>  strtolower($_GET['format'] ?? 'jpeg'),
+            'action'    =>  $_GET['action'] ?? ''
         ];
-
-        // $this->requestParams = $params;
-
-        return $params;
     }
 
     /**
@@ -76,9 +86,10 @@ class ImageProxy
      */
     public function serveCachedImage(string $path): void
     {
-        // $cache_location = "/cache/";
         $cache_location = $this->config['LOCATION'];
         $format = $this->requestParams['format'];
+
+        // dd("X-Accel-Redirect: " . $cache_location . basename($path), 'Content-Type: ' . self::getMimeTypeByExtension($format));
 
         header("X-Accel-Redirect: " . $cache_location . basename($path));
         header('Content-Type: ' . self::getMimeTypeByExtension($format));
@@ -117,7 +128,9 @@ class ImageProxy
      */
     public function getCachedFilename($sourceFile):string
     {
-        $cacheKey = md5(implode('|', $this->requestParams) . filemtime($sourceFile));
+        $request_params = $this->requestParams;
+        unset($request_params['action']);
+        $cacheKey = md5(implode('|', $request_params) . filemtime($sourceFile));
         return $this->cacheRoot . $cacheKey . '.' . $this->requestParams['format'];
     }
 
@@ -142,6 +155,13 @@ class ImageProxy
      */
     public function makeWithGD($sourceFile, $cacheFile): void
     {
+        // вот тут мы должны проверять допустимость действия
+        if (!$this->worker->checkAllowed($sourceFile)) {
+            $this->removeFile($cacheFile);
+            $this->worker->setFileContent($cacheFile); //@todo: вызывать метод ЭТОГО класса, который вызовет воркер
+            return;
+        }
+
         $imageInfo = getimagesize($sourceFile);
         if (!$imageInfo) {
             throw new RuntimeException('Unsupported image type', 400);
@@ -203,10 +223,10 @@ class ImageProxy
                 imagegif($sourceImage, $cacheFile);
                 break;
             case 'webp':
-                imagewebp($sourceImage, $cacheFile, $params['quality']);
+                imagewebp($sourceImage, $cacheFile, $this->jpeg_quality);
                 break;
             default:
-                imagejpeg($sourceImage, $cacheFile, $params['quality']);
+                imagejpeg($sourceImage, $cacheFile, $this->jpeg_quality);
                 break;
             // throw new RuntimeException('Unsupported output format', 400);
         }

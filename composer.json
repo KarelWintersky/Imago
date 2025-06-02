@@ -6,7 +6,8 @@
         "php": "^8.2",
         "ext-gd": "*",
         "psr/log": "*",
-        "karelwintersky/arris.logger": "^2"
+        "karelwintersky/arris.logger": "^2",
+        "karelwintersky/arris": "^2.17"
     },
     "license": "MIT",
     "autoload": {

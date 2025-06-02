@@ -1,48 +1,33 @@
 <?php
 
+use App\Imago\Exceptions\FileCachedException;
+use App\Imago\Exceptions\FileDeletedException;
+use App\Imago\Exceptions\FileNotFoundException;
 use App\Imago\ImageProxy;
 
 define('ENGINE_START_TIME', microtime(true));
-if (!session_id()) @session_start();
 
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 
-$storageRoot = '/var/www/dch_fontanka_zsd_costume/files.storage/';
-# $cacheDir = '/dev/shm/zsd_image_proxy/';
-$cacheDir = '/var/www/dch_fontanka_zsd_costume/files.storage.cache/';
 $configDir = dirname(__DIR__) . '/conf.d/';
-$cacheTtl = 86400; // 24 часа
-$defaultQuality = 80;
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
 try {
     $request = ImageProxy::getRequestParams();
 
-    // оно должно загружать не конфиг, а класс, который отдает конфиг и функцию обработки файла!
     $worker = match ($request['project']) {
-        '47news'    =>  new \App\Imago\Profiles\FSNews($configDir),
+        '47news'        =>  new \App\Imago\Profiles\FSNews($configDir),
+        'zsdcostume'    =>  new \App\Imago\Profiles\ZSDCostume($configDir),
+        default         =>  new \App\Imago\Profiles\ZSDCostume($configDir)
     };
-
-
-    $config_file = match ($request['project']) {
-        '47news'    =>  __DIR__ . '/../conf.d/47news.php',
-        'zsdcostume'=>  __DIR__ . '/../conf.d/zsd_costume.php',
-        default     =>  __DIR__ . '/../conf.d/zsd_costume.php'
-    };
-    if (empty($config_file)) {
-        throw new RuntimeException("Invalid project", 400);
-    }
 
     if (empty($request['file'])) {
-        throw new RuntimeException('No file given', 400);
+        throw new FileNotFoundException('No file given', 400);
     }
 
-    // загружаем конфиг проекта
-    $config = require_once $config_file;
-
-    $proxy = new ImageProxy($config);
+    $proxy = new ImageProxy($worker, $request);
 
     // Полный путь+файл исходный
     $sourceFile = $proxy->getSourceFilename();
@@ -52,20 +37,28 @@ try {
 
     if (!file_exists($sourceFile)) {
         $proxy->removeFile($cachedFile);
-        throw new RuntimeException('File not found', 404);
+        throw new FileNotFoundException('File not found', 404);
+    }
+
+    if (!empty($request['action']) && $request['action'] == 'purge') {
+        $proxy->removeFile($cachedFile);
+
+        // логгируем событие "удален файл"
+
+        throw new FileDeletedException();
     }
 
     // Если файл в кэше существует и свежий - отдаем его
-    if (file_exists($cachedFile) && (time() - filemtime($cachedFile) < $cacheTtl)) {
+    if (file_exists($cachedFile) && (time() - filemtime($cachedFile) < $worker->getConfig('TTL'))) {
         $proxy->serveCachedImage($cachedFile);
 
-        // LOG
+        // логгируем то, что отдан кэшированный файл
 
-        exit;
+        throw new FileCachedException();
     }
 
     // Создание директории кэша если нужно
-    ImageProxy::validateCacheDirectory($cacheDir);
+    ImageProxy::validateCacheDirectory($worker->getConfig('CACHE'));
 
     // main
     $proxy->makeWithGD($sourceFile, $cachedFile);
@@ -73,8 +66,23 @@ try {
     // Отдача результата
     $proxy->serveCachedImage($cachedFile);
 
-} catch (RuntimeException $e) {
+} catch (FileCachedException $e) {
+} catch (FileDeletedException $e) {
+    http_response_code(200);
+    header('Content-Type: application/json');
+    echo json_encode(['state' => 'ok', 'message' => 'File deleted']);
+} catch (FileNotFoundException|RuntimeException $e) {
     http_response_code($e->getCode() ?: 500);
     header('Content-Type: application/json');
-    echo json_encode(['error' => $e->getMessage(), 'line' => $e->getLine(), 'code' => $e->getCode() ]);
+    echo json_encode([
+        'error' => $e->getMessage(),
+        'line' => $e->getLine(),
+        'code' => $e->getCode(),
+        'file' => $e->getFile()
+    ]);
 }
+/*finally {
+
+}*/
+
+// финальное логгирование
