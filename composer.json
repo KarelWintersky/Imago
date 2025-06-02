@@ -1,0 +1,23 @@
+{
+    "name": "app/imago",
+    "description": "Image Proxy",
+    "type": "project",
+    "require": {
+        "php": "^8.2",
+        "ext-gd": "*",
+        "psr/log": "*",
+        "karelwintersky/arris.logger": "^2"
+    },
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "App\\Imago\\": "public/src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Karel Wintersky",
+            "email": "wombat@fontanka.ru"
+        }
+    ]
+}
