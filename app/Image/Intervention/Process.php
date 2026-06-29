@@ -14,6 +14,7 @@ final class Process
             $image = match ($rule) {
                 'crop' => $image->cover($config['width'], $config['height']),
                 'resize' => $image->scale($config['width'], $config['height']),
+                'rotate' => $image->rotate($config['angle'], 'ffffff'),
                 default => throw new \RuntimeException("Unknown Intervention process rule: {$rule}"),
             };
         }

@@ -15,8 +15,12 @@ final class Process
             $image = match ($rule) {
                 'crop' => self::crop($image, $srcW, $srcH, $config['width'], $config['height']),
                 'resize' => self::resize($image, $srcW, $srcH, $config['width'], $config['height']),
+                'rotate' => self::rotate($image, $config['angle']),
                 default => throw new \RuntimeException("Unknown GD process rule: {$rule}"),
             };
+
+            $srcW = imagesx($image);
+            $srcH = imagesy($image);
         }
 
         return $image;
@@ -57,5 +61,12 @@ final class Process
         imagedestroy($image);
 
         return $thumb;
+    }
+
+    private static function rotate(\GdImage $image, int $angle): \GdImage
+    {
+        $rotated = imagerotate($image, $angle, 0);
+        imagedestroy($image);
+        return $rotated;
     }
 }
