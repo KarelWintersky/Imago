@@ -14,7 +14,8 @@
         "predis/predis": "^2.0",
         "psr/log": "^3.0",
         "monolog/monolog": "^3.0",
-        "intervention/image": "^3.0"
+        "intervention/image": "^3.0",
+        "ext-imagick": "*"
     },
     "autoload": {
         "psr-4": {

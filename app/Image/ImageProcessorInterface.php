@@ -11,9 +11,7 @@ interface ImageProcessorInterface
     public function process(
         string $sourcePath,
         string $destPath,
-        int $width,
-        int $height,
-        string $mode = 'resize',
+        array $rules,
         int $quality = self::DEFAULT_QUALITY,
     ): void;
 }

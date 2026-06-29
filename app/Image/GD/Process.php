@@ -1,0 +1,61 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Imago\Image\GD;
+
+final class Process
+{
+    public static function run(\GdImage $image, array $rules): \GdImage
+    {
+        $srcW = imagesx($image);
+        $srcH = imagesy($image);
+
+        foreach ($rules as $rule => $config) {
+            $image = match ($rule) {
+                'crop' => self::crop($image, $srcW, $srcH, $config['width'], $config['height']),
+                'resize' => self::resize($image, $srcW, $srcH, $config['width'], $config['height']),
+                default => throw new \RuntimeException("Unknown GD process rule: {$rule}"),
+            };
+        }
+
+        return $image;
+    }
+
+    private static function crop(\GdImage $image, int $srcW, int $srcH, int $dstW, int $dstH): \GdImage
+    {
+        $ratio = $srcW / $srcH;
+        $dstRatio = $dstW / $dstH;
+
+        if ($ratio > $dstRatio) {
+            $cropW = (int) round($srcH * $dstRatio);
+            $cropH = $srcH;
+            $cropX = (int) round(($srcW - $cropW) / 2);
+            $cropY = 0;
+        } else {
+            $cropW = $srcW;
+            $cropH = (int) round($srcW / $dstRatio);
+            $cropX = 0;
+            $cropY = (int) round(($srcH - $cropH) / 2);
+        }
+
+        $thumb = imagecreatetruecolor($dstW, $dstH);
+        imagecopyresampled($thumb, $image, 0, 0, $cropX, $cropY, $dstW, $dstH, $cropW, $cropH);
+        imagedestroy($image);
+
+        return $thumb;
+    }
+
+    private static function resize(\GdImage $image, int $srcW, int $srcH, int $maxW, int $maxH): \GdImage
+    {
+        $ratio = min($maxW / $srcW, $maxH / $srcH);
+        $destW = (int) round($srcW * $ratio);
+        $destH = (int) round($srcH * $ratio);
+
+        $thumb = imagecreatetruecolor($destW, $destH);
+        imagecopyresampled($thumb, $image, 0, 0, 0, 0, $destW, $destH, $srcW, $srcH);
+        imagedestroy($image);
+
+        return $thumb;
+    }
+}

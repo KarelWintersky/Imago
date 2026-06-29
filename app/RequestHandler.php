@@ -150,7 +150,7 @@ final class RequestHandler
 
             $start = hrtime(true);
 
-            $this->processor->process($storagePath, $cachePath, $width, $height, $mode, driver: $serviceConfig['processor'] ?? null);
+            $this->processor->process($storagePath, $cachePath, [$mode => ['width' => $width, 'height' => $height]], driver: $serviceConfig['processor'] ?? null);
 
             $elapsed = (int) ((hrtime(true) - $start) / 1_000_000);
 
@@ -220,7 +220,7 @@ final class RequestHandler
                             mkdir(dirname($cachePath), 0775, true);
                         }
 
-                        $this->processor->process($result, $cachePath, $width, $height, $mode, driver: $serviceConfig['processor'] ?? null);
+                        $this->processor->process($result, $cachePath, [$mode => ['width' => $width, 'height' => $height]], driver: $serviceConfig['processor'] ?? null);
 
                         $mime = CacheManager::detectMime($cachePath);
                         $this->cache->set($cacheKey, $cachePath, $mime);
@@ -280,7 +280,7 @@ final class RequestHandler
                             mkdir(dirname($cachePath), 0775, true);
                         }
 
-                        $this->processor->process($result, $cachePath, $width, $height, $mode, driver: $serviceConfig['processor'] ?? null);
+                        $this->processor->process($result, $cachePath, [$mode => ['width' => $width, 'height' => $height]], driver: $serviceConfig['processor'] ?? null);
 
                         $mime = CacheManager::detectMime($cachePath);
                         $this->cache->set($cacheKey, $cachePath, $mime);
