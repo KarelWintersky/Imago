@@ -105,6 +105,11 @@ final class RequestHandler
             return $preprocess;
         }
 
+        $postprocess = $this->runPostprocess($serviceConfig, $storagePath, $params, $fullUrl, $service, $relativePath);
+        if ($postprocess !== null) {
+            return $postprocess;
+        }
+
         try {
             [$width, $height, $mode] = $this->resolveDimensions($params, $serviceConfig);
         } catch (\Throwable $e) {
@@ -178,7 +183,7 @@ final class RequestHandler
 
     private function runPreprocess(array $serviceConfig, string $storagePath, array $params, string $fullUrl, string $service, string $relativePath): ?Response
     {
-        foreach ($serviceConfig['restrict'] ?? [] as $callback) {
+        foreach ($serviceConfig['preProcess'] ?? [] as $callback) {
             $result = $callback($storagePath, $params);
 
             if ($result === null) {
@@ -186,13 +191,13 @@ final class RequestHandler
             }
 
             if ($result === false) {
-                $this->log('warning', "GET {$fullUrl} → 403 restricted");
+                $this->log('warning', "GET {$fullUrl} → 403 preProcess");
                 return $this->errorResponse(403, 'Forbidden');
             }
 
             if (is_string($result)) {
                 if (file_exists($result)) {
-                    $this->log('info', "GET {$fullUrl} → 200 restricted (override file)");
+                    $this->log('info', "GET {$fullUrl} → 200 preProcess (override file)");
                     [$width, $height, $mode] = $this->resolveDimensions($params, $serviceConfig);
                     if ($width > 0 && $height > 0) {
                         $cacheKey = $this->cache->buildKey($service, $relativePath, $params);
@@ -212,7 +217,7 @@ final class RequestHandler
                     $mime = CacheManager::detectMime($result);
                     return $this->imageResponse($result, $mime);
                 }
-                $this->log('info', "GET {$fullUrl} → 410 restricted ({$result})");
+                $this->log('info', "GET {$fullUrl} → 410 preProcess ({$result})");
                 return new Response(410, [
                     'Content-Type' => 'text/plain; charset=utf-8',
                     'Cache-Control' => 'no-store',
@@ -225,12 +230,72 @@ final class RequestHandler
                 $headers = $result['headers'] ?? [];
                 $headers['Content-Type'] ??= $result['content_type'] ?? 'text/plain; charset=utf-8';
                 $headers['Cache-Control'] ??= 'no-store';
-                $this->log('info', "GET {$fullUrl} → {$status} restricted");
+                $this->log('info', "GET {$fullUrl} → {$status} preProcess");
                 return new Response($status, $headers, $body);
             }
 
-            $this->log('warning', "GET {$fullUrl} → 500 invalid restrict callback return");
-            return $this->errorResponse(500, 'Invalid restriction result');
+            $this->log('warning', "GET {$fullUrl} → 500 invalid preProcess callback return");
+            return $this->errorResponse(500, 'Invalid preProcess result');
+        }
+
+        return null;
+    }
+
+    private function runPostprocess(array $serviceConfig, string $storagePath, array $params, string $fullUrl, string $service, string $relativePath): ?Response
+    {
+        foreach ($serviceConfig['postProcess'] ?? [] as $callback) {
+            $result = $callback($storagePath, $params);
+
+            if ($result === null) {
+                continue;
+            }
+
+            if ($result === false) {
+                $this->log('warning', "GET {$fullUrl} → 403 postProcess");
+                return $this->errorResponse(403, 'Forbidden');
+            }
+
+            if (is_string($result)) {
+                if (file_exists($result)) {
+                    $this->log('info', "GET {$fullUrl} → 200 postProcess (override file)");
+                    [$width, $height, $mode] = $this->resolveDimensions($params, $serviceConfig);
+                    if ($width > 0 && $height > 0) {
+                        $cacheKey = $this->cache->buildKey($service, $relativePath, $params);
+                        $extension = strtolower(pathinfo($relativePath, PATHINFO_EXTENSION)) ?: 'jpg';
+                        $cachePath = $this->cache->buildPath($cacheKey, $extension);
+
+                        if (!file_exists(dirname($cachePath))) {
+                            mkdir(dirname($cachePath), 0775, true);
+                        }
+
+                        $this->processor->process($result, $cachePath, $width, $height, $mode);
+
+                        $mime = CacheManager::detectMime($cachePath);
+                        $this->cache->set($cacheKey, $cachePath, $mime);
+                        return $this->imageResponse($cachePath, $mime);
+                    }
+                    $mime = CacheManager::detectMime($result);
+                    return $this->imageResponse($result, $mime);
+                }
+                $this->log('info', "GET {$fullUrl} → 410 postProcess ({$result})");
+                return new Response(410, [
+                    'Content-Type' => 'text/plain; charset=utf-8',
+                    'Cache-Control' => 'no-store',
+                ], $result);
+            }
+
+            if (is_array($result)) {
+                $status = $result['status'] ?? 410;
+                $body = $result['body'] ?? 'Restricted';
+                $headers = $result['headers'] ?? [];
+                $headers['Content-Type'] ??= $result['content_type'] ?? 'text/plain; charset=utf-8';
+                $headers['Cache-Control'] ??= 'no-store';
+                $this->log('info', "GET {$fullUrl} → {$status} postProcess");
+                return new Response($status, $headers, $body);
+            }
+
+            $this->log('warning', "GET {$fullUrl} → 500 invalid postProcess callback return");
+            return $this->errorResponse(500, 'Invalid postProcess result');
         }
 
         return null;

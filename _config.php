@@ -23,16 +23,17 @@ return [
                 'medium' => ['width' => 800, 'height' => 600, 'mode' => 'resize'],
                 'large' => ['width' => 1200, 'height' => 900, 'mode' => 'resize'],
             ],
-            'restrict' => [
+            'preProcess' => [
                 function (string $path, array $params): null|false|string|array {
                     if (($params['token'] ?? '') === 'password') return null;
 
                     if (preg_match('#/202[5-6]/#', $path)) {
-                        return '/var/www/imagoV2/public/storage/title_photo_archived.png';
+                        return __DIR__ . '/public/storage/title_photo_archived.png';
                     }
                     return null;
                 },
             ],
+            'postProcess' => [],
         ],
         'news47' => [
             'storage' => '',
@@ -46,7 +47,7 @@ return [
                 'thumb' => ['width' => 150, 'height' => 150, 'mode' => 'crop'],
                 'preview' => ['width' => 600, 'height' => 400, 'mode' => 'crop'],
             ],
-            'restrict' => [
+            'preProcess' => [
                 function (string $path, array $params): null|false|string|array {
                     if (preg_match('#/202[5-6]/#', $path)) {
                         return [
@@ -58,6 +59,7 @@ return [
                     return null;
                 },
             ],
+            'postProcess' => [],
         ],
     ],
 
