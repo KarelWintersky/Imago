@@ -1,0 +1,31 @@
+[Unit]
+Description=Imago Image Proxy Server
+Documentation=https://github.com/imago/imago-server
+After=network.target
+Wants=redis.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/imagoV2
+
+ExecStart=/usr/bin/php /var/www/imagoV2/bin/imago-server
+ExecReload=/bin/kill -HUP $MAINPID
+
+Restart=always
+RestartSec=3
+
+# Security hardening
+ProtectSystem=full
+PrivateTmp=true
+NoNewPrivileges=true
+CapabilityBoundingSet=
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=imago
+
+[Install]
+WantedBy=multi-user.target

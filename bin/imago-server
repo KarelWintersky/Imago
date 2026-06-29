@@ -1,0 +1,63 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Amp\Http\Server\DefaultErrorHandler;
+use Amp\Http\Server\Middleware\ForwardedHeaderType;
+use Amp\Http\Server\RequestHandler\ClosureRequestHandler;
+use Amp\Http\Server\SocketHttpServer;
+use Amp\ByteStream\WritableResourceStream;
+use Amp\Log\StreamHandler;
+use Monolog\Logger;
+use Monolog\Processor\PsrLogMessageProcessor;
+use Revolt\EventLoop;
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+$defaultConfig = require __DIR__ . '/../_config.php';
+$logLevel = $defaultConfig['log']['level'] ?? 'info';
+
+$logHandler = new StreamHandler(new WritableResourceStream(STDOUT), $logLevel);
+$logHandler->pushProcessor(new PsrLogMessageProcessor());
+$consoleLogger = new Logger('imago', [$logHandler]);
+
+$container = require __DIR__ . '/../app/bootstrap.php';
+$config = $container['config'];
+$handler = $container['handler'];
+
+$addr = $config['server']['host'] . ':' . $config['server']['port'];
+
+$consoleLogger->notice("Imago server starting on {$addr}...");
+
+$httpServer = SocketHttpServer::createForBehindProxy(
+    $consoleLogger,
+    ForwardedHeaderType::XForwardedFor,
+    ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16'],
+    enableCompression: false,
+);
+
+$httpServer->expose($addr);
+
+$shutdown = function () use ($httpServer, $consoleLogger): void {
+    $consoleLogger->info('Shutting down...');
+
+    EventLoop::delay(3, fn () => EventLoop::stop());
+
+    \Amp\async(function () use ($httpServer): void {
+        $httpServer->stop();
+        EventLoop::stop();
+    });
+};
+
+EventLoop::onSignal(SIGINT, $shutdown);
+EventLoop::onSignal(SIGTERM, $shutdown);
+
+$httpServer->start(
+    new ClosureRequestHandler(\Closure::fromCallable($handler)),
+    new DefaultErrorHandler(),
+);
+
+$consoleLogger->info('Imago server started', ['address' => "http://{$addr}"]);
+
+EventLoop::run();
