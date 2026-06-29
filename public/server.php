@@ -55,11 +55,11 @@ $httpServer->expose($addr);
 $shutdown = function () use ($httpServer, $logger): void {
     $logger->info('Shutting down...');
 
-    EventLoop::delay(3, fn () => EventLoop::stop());
+    EventLoop::delay(3, fn () => EventLoop::getDriver()->stop());
 
     \Amp\async(function () use ($httpServer): void {
         $httpServer->stop();
-        EventLoop::stop();
+        EventLoop::getDriver()->stop();
     });
 };
 

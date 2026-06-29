@@ -11,6 +11,7 @@ return [
     'services' => [
         'pulsar' => [
             'storage' => 'pulsar',
+            'domains' => ['images.pulsar.local'],
             'placeholder' => [
                 'enabled' => true,
                 'color' => '3d4070',
@@ -21,6 +22,19 @@ return [
                 'small' => ['width' => 300, 'height' => 200, 'mode' => 'resize'],
                 'medium' => ['width' => 800, 'height' => 600, 'mode' => 'resize'],
                 'large' => ['width' => 1200, 'height' => 900, 'mode' => 'resize'],
+            ],
+        ],
+        'news47' => [
+            'storage' => '',
+            'domains' => ['images.47news.local'],
+            'placeholder' => [
+                'enabled' => true,
+                'color' => 'ffffff',
+                'background' => 'cc0000',
+            ],
+            'profiles' => [
+                'thumb' => ['width' => 150, 'height' => 150, 'mode' => 'crop'],
+                'preview' => ['width' => 600, 'height' => 400, 'mode' => 'crop'],
             ],
         ],
     ],

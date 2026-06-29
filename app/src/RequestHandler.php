@@ -15,6 +15,9 @@ final class RequestHandler
     private readonly Logger $fileLogger;
     private readonly ?\Psr\Log\LoggerInterface $consoleLogger;
 
+    /** @var array<string, string> domain → service name */
+    private readonly array $domainMap;
+
     public function __construct(
         private readonly array $config,
         ?\Psr\Log\LoggerInterface $consoleLogger = null,
@@ -24,6 +27,14 @@ final class RequestHandler
         $this->cache = new CacheManager($config, $this->fileLogger);
         $this->processor = new ImageProcessor();
         $this->placeholder = new PlaceholderGenerator();
+
+        $map = [];
+        foreach ($config['services'] ?? [] as $name => $service) {
+            foreach ($service['domains'] ?? [] as $domain) {
+                $map[strtolower($domain)] = $name;
+            }
+        }
+        $this->domainMap = $map;
     }
 
     private function log(string $level, string $message, array $context = []): void
@@ -57,21 +68,35 @@ final class RequestHandler
         }
 
         $parts = explode('/', trim($path, '/'));
-        if (count($parts) < 2) {
-            $this->log('warning', "GET {$fullUrl} → 400 invalid path");
-            return $this->errorResponse(400, 'Invalid path: /{service}/{image_path} expected');
-        }
+        $first = $parts[0] ?? null;
 
-        $service = array_shift($parts);
-        $relativePath = implode('/', $parts);
+        if ($first !== null && isset($this->config['services'][$first])) {
+            $service = array_shift($parts);
+            $relativePath = implode('/', $parts);
+            if ($relativePath === '') {
+                $this->log('warning', "GET {$fullUrl} → 400 invalid path");
+                return $this->errorResponse(400, 'Invalid path: /{service}/{image_path} expected');
+            }
+        } else {
+            $host = $request->getHeader('host');
+            if ($host === null) {
+                $this->log('warning', "GET {$fullUrl} → 400 missing Host header");
+                return $this->errorResponse(400, 'Missing Host header');
+            }
 
-        if ($relativePath === '' || !isset($this->config['services'][$service])) {
-            $this->log('warning', "GET {$fullUrl} → 404 service not found");
-            return $this->errorResponse(404, 'Service not found');
+            $host = strtolower(explode(':', $host)[0]);
+            $service = $this->domainMap[$host] ?? null;
+
+            if ($service === null) {
+                $this->log('warning', "GET {$fullUrl} → 404 service not found");
+                return $this->errorResponse(404, 'Service not found');
+            }
+
+            $relativePath = implode('/', $parts);
         }
 
         $serviceConfig = $this->config['services'][$service];
-        $storagePath = $serviceConfig['storage_path'] . '/' . $relativePath;
+        $storagePath = rtrim($serviceConfig['storage_path'], '/') . '/' . $relativePath;
 
         parse_str($query, $params);
 
