@@ -67,12 +67,17 @@ return [
     'processor' => 'gd',
 
     'cache' => [
-        'driver' => 'file',
-        'ttl' => 86400 * 30,
-        'redis' => [
-            'host' => '127.0.0.1',
-            'port' => 6379,
-            'prefix' => 'imago:cache:',
+        'files' => [
+            'dir' => __DIR__ . '/public/cache',
+            'ttl' => 86400 * 30,
+        ],
+        'meta' => [
+            'driver' => 'file',
+            'redis' => [
+                'host' => '127.0.0.1',
+                'port' => 6379,
+                'prefix' => 'imago:cache:',
+            ],
         ],
     ],
 

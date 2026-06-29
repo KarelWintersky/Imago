@@ -151,12 +151,17 @@ systemctl reload nginx
 
 ```php
 'cache' => [
-    'driver' => 'redis',     // было 'file'
-    'ttl' => 86400 * 30,
-    'redis' => [
-        'host' => '127.0.0.1',
-        'port' => 6379,
-        'prefix' => 'imago:cache:',
+    'files' => [
+        'dir' => __DIR__ . '/public/cache',   // где хранить файлы
+        'ttl' => 86400 * 30,                   // время жизни кэша
+    ],
+    'meta' => [
+        'driver' => 'redis',                   // file | redis (мета-данные)
+        'redis' => [
+            'host' => '127.0.0.1',
+            'port' => 6379,
+            'prefix' => 'imago:cache:',
+        ],
     ],
 ],
 ```

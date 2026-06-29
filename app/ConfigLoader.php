@@ -22,8 +22,17 @@ final class ConfigLoader
 
         $config['root_dir'] = $configDir;
         $config['storage_dir'] = $configDir . '/public/storage';
-        $config['cache_dir'] ??= $configDir . '/public/cache';
         $config['log_dir'] = $configDir . '/logs';
+
+        if (!isset($config['cache']['files']['dir'])) {
+            $config['cache']['files']['dir'] = $configDir . '/public/cache';
+        }
+        if (!isset($config['cache']['files']['ttl'])) {
+            $config['cache']['files']['ttl'] = 86400 * 30;
+        }
+        if (!isset($config['cache']['meta']['driver'])) {
+            $config['cache']['meta']['driver'] = 'file';
+        }
 
         if (isset($config['services']) && is_array($config['services'])) {
             foreach ($config['services'] as $name => &$serviceConfig) {

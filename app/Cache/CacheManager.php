@@ -26,20 +26,32 @@ final class CacheManager
         return $service . ':' . $path . ($query !== '' ? '?' . $query : '');
     }
 
+    private function cacheDir(): string
+    {
+        return $this->config['cache']['files']['dir']
+            ?? $this->config['cache_dir']
+            ?? $this->config['root_dir'] . '/public/cache';
+    }
+
+    private function ttl(): int
+    {
+        return $this->config['cache']['files']['ttl']
+            ?? $this->config['ttl']
+            ?? 86400 * 30;
+    }
+
     public function buildPath(string $key, string $extension): string
     {
         $hash = md5($key);
         $prefix = substr($hash, 0, 2);
-        return ($this->config['cache_dir'] ?? $this->config['root_dir'] . '/public/cache')
-            . '/' . $prefix . '/' . $hash . '.' . ltrim($extension, '.');
+        return $this->cacheDir() . '/' . $prefix . '/' . $hash . '.' . ltrim($extension, '.');
     }
 
     public function get(string $key): ?array
     {
         $meta = $this->getRedisMeta($key);
         if ($meta !== null && isset($meta['path']) && file_exists($meta['path'])) {
-            $ttl = $this->config['ttl'] ?? 86400 * 30;
-            if (time() - filemtime($meta['path']) < $ttl) {
+            if (time() - filemtime($meta['path']) < $this->ttl()) {
                 return $meta;
             }
             @unlink($meta['path']);
@@ -76,7 +88,7 @@ final class CacheManager
 
     private function findFile(string $key): ?array
     {
-        $cacheDir = $this->config['cache_dir'] ?? $this->config['root_dir'] . '/public/cache';
+        $cacheDir = $this->cacheDir();
         $hash = md5($key);
         $prefix = substr($hash, 0, 2);
         $pattern = $cacheDir . '/' . $prefix . '/' . $hash . '.*';
@@ -87,9 +99,8 @@ final class CacheManager
         }
 
         $path = $files[0];
-        $ttl = $this->config['ttl'] ?? 86400 * 30;
 
-        if (time() - filemtime($path) < $ttl) {
+        if (time() - filemtime($path) < $this->ttl()) {
             return ['path' => $path, 'mime' => self::detectMime($path)];
         }
 
@@ -103,12 +114,16 @@ final class CacheManager
             return $this->redis;
         }
 
-        if (($this->config['driver'] ?? 'file') !== 'redis') {
+        $driver = $this->config['cache']['meta']['driver']
+            ?? $this->config['driver']
+            ?? 'file';
+
+        if ($driver !== 'redis') {
             return null;
         }
 
         try {
-            $rc = $this->config['redis'] ?? [];
+            $rc = $this->config['cache']['meta']['redis'] ?? $this->config['redis'] ?? [];
             $host = $rc['host'] ?? '127.0.0.1';
             $port = $rc['port'] ?? 6379;
 
@@ -157,8 +172,7 @@ final class CacheManager
         }
 
         try {
-            $ttl = $this->config['ttl'] ?? 86400 * 30;
-            $redis->setex($key, $ttl, $value);
+            $redis->setex($key, $this->ttl(), $value);
         } catch (\Throwable $e) {
             $this->logger->warning('Redis SET error', ['error' => $e->getMessage()]);
         }
