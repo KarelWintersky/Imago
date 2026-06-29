@@ -22,7 +22,7 @@ final class ConfigLoader
 
         $config['root_dir'] = $configDir;
         $config['storage_dir'] = $configDir . '/public/storage';
-        $config['cache_dir'] = $configDir . '/public/cache';
+        $config['cache_dir'] ??= $configDir . '/public/cache';
         $config['log_dir'] = $configDir . '/logs';
 
         if (isset($config['services']) && is_array($config['services'])) {
