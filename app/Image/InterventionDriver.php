@@ -10,9 +10,8 @@ final class InterventionDriver implements ImageProcessorInterface
 {
     private readonly ImageManager $manager;
 
-    public function __construct(array $config)
+    public function __construct(string $backend = 'gd')
     {
-        $backend = $config['processor']['intervention_backend'] ?? 'gd';
         $driverClass = match ($backend) {
             'gd' => \Intervention\Image\Drivers\Gd\Driver::class,
             'imagick' => \Intervention\Image\Drivers\Imagick\Driver::class,

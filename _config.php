@@ -64,9 +64,7 @@ return [
         ],
     ],
 
-    'processor' => [
-        'driver' => 'gd',
-    ],
+    'processor' => 'gd',
 
     'cache' => [
         'driver' => 'file',

@@ -7,15 +7,16 @@ namespace Imago\Image;
 final class ImageProcessor
 {
     private readonly string $defaultDriver;
-    private readonly array $config;
     private readonly GdDriver $gd;
     private readonly ImagickDriver $imagick;
-    private ?InterventionDriver $intervention = null;
+
+    /** @var array<string, InterventionDriver> */
+    private array $interventions = [];
 
     public function __construct(array $config)
     {
-        $this->config = $config;
-        $this->defaultDriver = $config['processor']['driver'] ?? 'gd';
+        $default = $config['processor'] ?? 'gd';
+        $this->defaultDriver = is_string($default) ? $default : 'gd';
         $this->gd = new GdDriver();
         $this->imagick = new ImagickDriver();
     }
@@ -31,10 +32,15 @@ final class ImageProcessor
     ): void {
         $driver ??= $this->defaultDriver;
 
-        $instance = match ($driver) {
+        [$name, $backend] = str_contains($driver, ':')
+            ? explode(':', $driver, 2)
+            : [$driver, null];
+
+        $instance = match ($name) {
             'gd' => $this->gd,
             'imagick' => $this->imagick,
-            'intervention' => $this->intervention ??= new InterventionDriver($this->config),
+            'intervention' => $this->interventions[$backend ?? 'gd']
+                ??= new InterventionDriver($backend ?? 'gd'),
             default => throw new \RuntimeException("Unknown image processor driver: {$driver}"),
         };
 

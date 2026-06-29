@@ -217,17 +217,14 @@ return [
 Доступны драйверы: `gd` (через ext-gd), `imagick` (через ext-imagick) и `intervention` (через `intervention/image`). Драйвер задаётся глобально, но может быть переопределён для конкретного сервиса:
 
 ```php
-'processor' => [
-    'driver' => 'gd',                // gd | imagick | intervention
-    'intervention_backend' => 'gd',  // gd | imagick — только для intervention
-],
+'processor' => 'gd',                     // gd | imagick | intervention:gd | intervention:imagick
 
 'services' => [
     'pulsar' => [
-        // использует глобальный драйвер (gd)
+        // использует глобальный драйвер
     ],
     'news47' => [
-        'processor' => 'imagick',    // переопределение на сервис
+        'processor' => 'imagick',        // переопределение на сервис
     ],
 ],
 ```
