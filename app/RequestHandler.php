@@ -6,6 +6,9 @@ namespace Imago;
 
 use Amp\Http\Server\Request;
 use Amp\Http\Server\Response;
+use Imago\Cache\CacheManager;
+use Imago\Image\ImageProcessor;
+use Imago\Image\PlaceholderGenerator;
 
 final class RequestHandler
 {

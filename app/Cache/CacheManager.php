@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Imago;
+namespace Imago\Cache;
 
+use Imago\Logger;
 use Predis\Client as RedisClient;
 
 final class CacheManager
