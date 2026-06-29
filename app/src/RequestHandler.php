@@ -100,7 +100,7 @@ final class RequestHandler
 
         parse_str($query, $params);
 
-        $preprocess = $this->runPreprocess($serviceConfig, $storagePath, $params, $fullUrl);
+        $preprocess = $this->runPreprocess($serviceConfig, $storagePath, $params, $fullUrl, $service, $relativePath);
         if ($preprocess !== null) {
             return $preprocess;
         }
@@ -176,7 +176,7 @@ final class RequestHandler
         return $this->errorResponse(404, 'Image not found');
     }
 
-    private function runPreprocess(array $serviceConfig, string $storagePath, array $params, string $fullUrl): ?Response
+    private function runPreprocess(array $serviceConfig, string $storagePath, array $params, string $fullUrl, string $service, string $relativePath): ?Response
     {
         foreach ($serviceConfig['restrict'] ?? [] as $callback) {
             $result = $callback($storagePath, $params);
@@ -192,8 +192,24 @@ final class RequestHandler
 
             if (is_string($result)) {
                 if (file_exists($result)) {
+                    $this->log('info', "GET {$fullUrl} → 200 restricted (override file)");
+                    [$width, $height, $mode] = $this->resolveDimensions($params, $serviceConfig);
+                    if ($width > 0 && $height > 0) {
+                        $cacheKey = $this->cache->buildKey($service, $relativePath, $params);
+                        $extension = strtolower(pathinfo($relativePath, PATHINFO_EXTENSION)) ?: 'jpg';
+                        $cachePath = $this->cache->buildPath($cacheKey, $extension);
+
+                        if (!file_exists(dirname($cachePath))) {
+                            mkdir(dirname($cachePath), 0775, true);
+                        }
+
+                        $this->processor->process($result, $cachePath, $width, $height, $mode);
+
+                        $mime = CacheManager::detectMime($cachePath);
+                        $this->cache->set($cacheKey, $cachePath, $mime);
+                        return $this->imageResponse($cachePath, $mime);
+                    }
                     $mime = CacheManager::detectMime($result);
-                    $this->log('info', "GET {$fullUrl} → 200 restricted (overridden file)");
                     return $this->imageResponse($result, $mime);
                 }
                 $this->log('info', "GET {$fullUrl} → 410 restricted ({$result})");

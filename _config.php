@@ -23,6 +23,16 @@ return [
                 'medium' => ['width' => 800, 'height' => 600, 'mode' => 'resize'],
                 'large' => ['width' => 1200, 'height' => 900, 'mode' => 'resize'],
             ],
+            'restrict' => [
+                function (string $path, array $params): null|false|string|array {
+                    if (($params['token'] ?? '') === 'password') return null;
+
+                    if (preg_match('#/202[5-6]/#', $path)) {
+                        return '/var/www/imagoV2/public/storage/title_photo_archived.png';
+                    }
+                    return null;
+                },
+            ],
         ],
         'news47' => [
             'storage' => '',
@@ -38,7 +48,7 @@ return [
             ],
             'restrict' => [
                 function (string $path, array $params): null|false|string|array {
-                    if (preg_match('#/202[0-3]/#', $path)) {
+                    if (preg_match('#/202[5-6]/#', $path)) {
                         return [
                             'status' => 410,
                             'body' => 'The requested file has been archived and is no longer available.',
