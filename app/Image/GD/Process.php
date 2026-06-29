@@ -17,6 +17,7 @@ final class Process
                 'resize' => self::resize($image, $srcW, $srcH, $config['width'], $config['height']),
                 'rotate' => self::rotate($image, $config['angle']),
                 'grayscale' => self::grayscale($image),
+                'watermark' => self::watermark($image, $config),
                 default => throw new \RuntimeException("Unknown GD process rule: {$rule}"),
             };
 
@@ -74,6 +75,41 @@ final class Process
     private static function grayscale(\GdImage $image): \GdImage
     {
         imagefilter($image, IMG_FILTER_GRAYSCALE);
+        return $image;
+    }
+
+    private static function watermark(\GdImage $image, array $config): \GdImage
+    {
+        $wm = imagecreatefrompng($config['image']);
+
+        $wmW = (int) ($config['width'] ?? imagesx($wm));
+        $wmH = (int) ($config['height'] ?? imagesy($wm));
+
+        if (isset($config['width']) || isset($config['height'])) {
+            $resized = imagecreatetruecolor($wmW, $wmH);
+            imagealphablending($resized, false);
+            imagesavealpha($resized, true);
+            imagecopyresampled($resized, $wm, 0, 0, 0, 0, $wmW, $wmH, imagesx($wm), imagesy($wm));
+            imagedestroy($wm);
+            $wm = $resized;
+        }
+
+        $destW = imagesx($image);
+        $destH = imagesy($image);
+        $gap = (int) ($config['gap'] ?? 10);
+
+        [$x, $y] = match ($config['position'] ?? 'SE') {
+            'NW' => [$gap, $gap],
+            'NE' => [$destW - $wmW - $gap, $gap],
+            'SW' => [$gap, $destH - $wmH - $gap],
+            'SE' => [$destW - $wmW - $gap, $destH - $wmH - $gap],
+        };
+
+        imagealphablending($image, true);
+        imagesavealpha($image, true);
+        imagecopy($image, $wm, $x, $y, 0, 0, $wmW, $wmH);
+        imagedestroy($wm);
+
         return $image;
     }
 }

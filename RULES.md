@@ -43,9 +43,24 @@ $rules = [
 
 ```php
 'grayscale' => []
-// или
-'grayscale' => true
 ```
+
+## watermark
+
+Наложение PNG-изображения (watermark) с прозрачностью.
+
+```php
+'watermark' => [
+    'image'    => __DIR__ . '/public/assets/wm.png',  // путь к PNG
+    'width'    => 100,    // опционально: ширина watermark
+    'height'   => null,   // опционально: высота (пропорции, если только width)
+    'position' => 'SE',   // NW | NE | SW | SE
+    'gap'      => 10,     // отступ от края в px
+]
+```
+
+Если `width`/`height` не указаны — используется оригинальный размер файла.  
+Если указан только `width` — высота сохраняет пропорции (и наоборот).
 
 ---
 

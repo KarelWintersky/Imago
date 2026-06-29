@@ -22,16 +22,25 @@ return [
                 'small' => ['resize' => ['width' => 300, 'height' => 200]],
                 'medium' => ['resize' => ['width' => 800, 'height' => 600]],
                 'large' => ['resize' => ['width' => 1200, 'height' => 900]],
+                'wm'    =>  [
+                    'watermark' =>  [
+                        'image'     =>  __DIR__ . '/public/assets/wm_47news.png',
+                        'width'     =>  150,
+                        'height'    =>  150,
+                        'gap'       =>  50
+                    ],
+                    'resize'    =>  [ 'width' => 800, 'height' => 600 ]
+                ],
             ],
             'preProcess' => [
-                function (string $path, array $params): null|false|string|array {
+                /*function (string $path, array $params): null|false|string|array {
                     if (($params['token'] ?? '') === 'password') return null;
 
                     if (preg_match('#/202[5-6]/#', $path)) {
                         return __DIR__ . '/public/assets/title_photo_archived.png';
                     }
                     return null;
-                },
+                },*/
             ],
             'postProcess' => [],
         ],
@@ -48,7 +57,7 @@ return [
                 'preview' => ['crop' => ['width' => 600, 'height' => 400]],
             ],
             'preProcess' => [
-                function (string $path, array $params): null|false|string|array {
+                /*function (string $path, array $params): null|false|string|array {
                     if (preg_match('#/202[5-6]/#', $path)) {
                         return [
                             'status' => 410,
@@ -57,7 +66,7 @@ return [
                         ];
                     }
                     return null;
-                },
+                },*/
             ],
             'postProcess' => [],
             'processor' => 'imagick',

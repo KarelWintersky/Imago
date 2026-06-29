@@ -67,7 +67,7 @@ final class ImageProcessor
 
         $this->ivManager ??= new ImageManager(new $driverClass());
         $img = IV\Load::run($this->ivManager, $sourcePath);
-        $img = IV\Process::run($img, $rules);
+        $img = IV\Process::run($img, $rules, $this->ivManager);
         IV\Save::run($img, $destPath, $quality);
     }
 }
