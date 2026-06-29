@@ -14,7 +14,7 @@
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-$container = require __DIR__ . '/../app/bootstrap.php';
+$container = require __DIR__ . '/../app/_bootstrap.php';
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $host = $_SERVER['HTTP_HOST'] ?? 'localhost';

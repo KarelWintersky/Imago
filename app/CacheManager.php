@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Imago;
+namespace app;
 
 use Predis\Client as RedisClient;
 

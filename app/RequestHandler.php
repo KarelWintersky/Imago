@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Imago;
+namespace app;
 
 use Amp\Http\Server\Request;
 use Amp\Http\Server\Response;

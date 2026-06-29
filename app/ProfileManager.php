@@ -2,13 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Imago;
+namespace app;
 
-final class ProfileManager
+final readonly class ProfileManager
 {
-    private readonly array $profiles;
+    private array $profiles;
 
-    public function __construct(private readonly array $serviceConfig) {
+    public function __construct(private array $serviceConfig)
+    {
         $this->profiles = $serviceConfig['profiles'] ?? [];
     }
 

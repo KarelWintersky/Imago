@@ -3,10 +3,10 @@
 
 declare(strict_types=1);
 
+use Amp\ByteStream\WritableResourceStream;
 use Amp\Http\Server\DefaultErrorHandler;
 use Amp\Http\Server\RequestHandler\ClosureRequestHandler;
 use Amp\Http\Server\SocketHttpServer;
-use Amp\ByteStream\WritableResourceStream;
 use Amp\Log\StreamHandler;
 use Monolog\Logger;
 use Monolog\Processor\PsrLogMessageProcessor;
@@ -26,7 +26,7 @@ if (!file_exists($configPath)) {
     exit(1);
 }
 
-$config = \Imago\ConfigLoader::load($configPath);
+$config = app\ConfigLoader::load($configPath);
 
 $logLevel = $config['log']['level'] ?? 'info';
 $logHandler = new StreamHandler(new WritableResourceStream(STDOUT), $logLevel);
@@ -35,7 +35,7 @@ $logger = new Logger('imago', [$logHandler]);
 
 $consoleLogger = $logger;
 
-$container = require __DIR__ . '/../app/bootstrap.php';
+$container = require __DIR__ . '/../app/_bootstrap.php';
 $config = $container['config'];
 $handler = $container['handler'];
 

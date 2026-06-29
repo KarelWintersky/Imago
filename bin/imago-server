@@ -22,7 +22,7 @@ $logHandler = new StreamHandler(new WritableResourceStream(STDOUT), $logLevel);
 $logHandler->pushProcessor(new PsrLogMessageProcessor());
 $consoleLogger = new Logger('imago', [$logHandler]);
 
-$container = require __DIR__ . '/../app/bootstrap.php';
+$container = require __DIR__ . '/../app/_bootstrap.php';
 $config = $container['config'];
 $handler = $container['handler'];
 
