@@ -3,170 +3,75 @@
 Асинхронный прокси-сервер изображений на **PHP 8.2+** и **AmPHP v3**.
 
 ```
-
 GET /pulsar/photo.jpg?width=300&height=200
-GET /pulsar/photo.jpg?width=300&height=200&mode=crop
 GET /pulsar/photo.jpg?profile=thumb
 
-# Или через домен (без префикса сервиса в пути):
+# Через домен (без префикса сервиса):
 # images.pulsar.local/photo.jpg?width=300
 ```
 
----
+## Быстрый старт
 
-## Быстрый старт (локальный стенд)
+### Требования
 
-### 1. Требования
-
-- PHP ≥ 8.2 с ext-`gd`
+- PHP ≥ 8.2 с ext-`gd` / ext-`imagick` (опционально)
 - Composer
-- Redis (опционально, для ускорения кэша)
+- Redis (опционально)
+
+### Установка
 
 ```bash
-php -v                    # 8.2+
-php -m | grep gd          # GD есть?
-composer --version        # установлен?
-```
-
-### 2. Установка
-
-```bash
-cd /var/www/imagoV2
+git clone https://github.com/KarelWintersky/Imago.git
+cd Imago
 composer install --no-dev
 ```
 
-### 3. Монтирование стораджей
-
-Создайте симлинки или смонтируйте бакеты в `public/storage/`:
+### Монтирование хранилищ
 
 ```bash
-# Пример: хранилище сервиса pulsar
 ln -s /mnt/disks/pulsar-images public/storage/pulsar
-
-# Или просто создать директорию для теста:
+# или для теста:
 mkdir -p public/storage/pulsar
-cp /path/to/test.jpg public/storage/pulsar/
+cp photo.jpg public/storage/pulsar/
 ```
 
-### 4. Запуск
+### Запуск
 
 ```bash
-# Прямой запуск (AmPHP-сервер):
-php bin/imago-server
-
-# Или с явным указанием конфига:
 php public/server.php --config=_config.php
-
-# Или через PHP built-in server (только для отладки):
-php -S 0.0.0.0:8080 -t public/
+# или
+php bin/imago-server
 ```
 
-Сервер слушает `127.0.0.1:8080` (порт и хост настраиваются в конфиге).
+Сервер слушает `127.0.0.1:8080`.
 
-### 5. Проверка
+### Проверка
 
 ```bash
-# Health check:
 curl http://127.0.0.1:8080/health
 
-# Ресайз существующего изображения:
-curl -o result.jpg "http://127.0.0.1:8080/pulsar/test.jpg?width=300&height=200"
-
-# Через профиль (из _config.php):
-curl -o thumb.jpg "http://127.0.0.1:8080/pulsar/test.jpg?profile=thumb"
-
-# Crop (кадрирование):
-curl -o cropped.jpg "http://127.0.0.1:8080/pulsar/test.jpg?width=150&height=150&mode=crop"
-
-# Плейсхолдер (если файла нет):
-curl -o placeholder.jpg "http://127.0.0.1:8080/pulsar/no-such-file.jpg?width=300&height=200"
-
-# Проверить размеры:
-identify result.jpg thumb.jpg cropped.jpg placeholder.jpg
-```
-
-### 6. Остановка
-
-```bash
-kill $(pgrep -f imago-server)
+curl -o result.jpg "http://127.0.0.1:8080/pulsar/photo.jpg?width=300"
+curl -o thumb.jpg  "http://127.0.0.1:8080/pulsar/photo.jpg?profile=thumb"
+curl -o crop.jpg   "http://127.0.0.1:8080/pulsar/photo.jpg?width=150&height=150&mode=crop"
 ```
 
 ---
 
-## Деплой на production
-
-### 1. Структура директорий
+## Архитектура
 
 ```
-/var/www/imagoV2/
-├── _config.php          # конфиг
-├── app/                 # код
-├── bin/imago-server     # запуск сервера
-├── public/
-│   ├── cache/           # кэш (должен быть доступен на запись)
-│   └── storage/         # стораджи сервисов
-├── logs/                # логи (должен быть доступен на запись)
-└── vendor/              # composer-зависимости
+Client → Nginx → AmPHP (127.0.0.1:8080)
+                    │
+                    ├─ RequestHandler → resolve service + params
+                    │     ├─ CacheManager → file cache ({md5[0:2]}/{md5}.ext)
+                    │     │     └─ Redis (опционально, мета-данные)
+                    │     ├─ ImageProcessor → Load → Process(rules) → Save
+                    │     └─ PlaceholderGenerator → заглушка при 404
+                    │
+                    └─ Response (200, Content-Type, Cache-Control)
 ```
 
-Права:
-
-```bash
-chown -R www-data:www-data /var/www/imagoV2/{public/cache,logs}
-chmod -R 775 /var/www/imagoV2/{public/cache,logs}
-```
-
-### 2. Systemd-сервис
-
-```bash
-cp imago.service /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable imago
-systemctl start imago
-
-# Проверка:
-systemctl status imago
-journalctl -u imago -f
-```
-
-### 3. Nginx
-
-```bash
-cp nginx.conf.example /etc/nginx/sites-available/imago.example.com
-ln -s /etc/nginx/sites-available/imago.example.com /etc/nginx/sites-enabled/
-nginx -t
-systemctl reload nginx
-```
-
-Основные моменты конфига:
-
-- **`location /cache/`** — nginx отдаёт кэшированные файлы напрямую, минуя AmPHP (быстрый путь)
-- **`location /`** — прокси на `127.0.0.1:8080`
-- Заблокированы файлы, начинающиеся с `_` и `.`
-- Таймауты: чтение 30s (на случай обработки больших файлов)
-
-### 4. Redis (опционально)
-
-Включите Redis-кэш в `_config.php`:
-
-```php
-'cache' => [
-    'files' => [
-        'dir' => __DIR__ . '/public/cache',   // где хранить файлы
-        'ttl' => 86400 * 30,                   // время жизни кэша
-    ],
-    'meta' => [
-        'driver' => 'redis',                   // file | redis (мета-данные)
-        'redis' => [
-            'host' => '127.0.0.1',
-            'port' => 6379,
-            'prefix' => 'imago:cache:',
-        ],
-    ],
-],
-```
-
-Redis хранит мета-данные: путь к файлу кэша и mime-type. Сами файлы хранятся на диске. Если Redis недоступен — бесшовное падение на файловый кэш.
+Кэш: `public/cache/{md5[0:2]}/{md5}.{ext}`.
 
 ---
 
@@ -177,116 +82,55 @@ Redis хранит мета-данные: путь к файлу кэша и mim
 ```php
 return [
     'server' => [
-        'host' => '127.0.0.1',  // адрес, на котором слушает AmPHP
+        'host' => '127.0.0.1',
         'port' => 8080,
+    ],
+
+    'processor' => 'gd',   // gd | imagick | intervention:gd | intervention:imagick
+
+    'cache' => [
+        'files' => [
+            'dir' => __DIR__ . '/public/cache',
+            'ttl' => 86400 * 30,
+        ],
+        'meta' => [
+            'driver' => 'file',   // file | redis
+            'redis' => [
+                'host' => '127.0.0.1',
+                'port' => 6379,
+                'prefix' => 'imago:cache:',
+            ],
+        ],
     ],
 
     'services' => [
         'pulsar' => [
-            'storage' => 'pulsar',           // поддиректория в public/storage/
-            'domains' => ['images.pulsar.local'],  // домены для роутинга без префикса
-            'placeholder' => [               // заглушки вместо отсутствующих файлов
-                'enabled' => true,
-                'color' => '3d4070',         // цвет текста (hex без #)
-                'background' => 'ffffff',    // цвет фона (hex без #)
-            ],
-            'profiles' => [                  // именованные профили обработки
-                'thumb' => ['crop' => ['width' => 150, 'height' => 150]],
-                'small' => ['resize' => ['width' => 300, 'height' => 200]],
+            'storage' => 'pulsar',                          // поддиректория в public/storage/
+            'domains' => ['images.pulsar.local'],
+            'placeholder' => ['enabled' => true, 'color' => '3d4070', 'background' => 'ffffff'],
+            'profiles' => [
+                'thumb'  => ['crop'   => ['width' => 150, 'height' => 150]],
+                'small'  => ['resize' => ['width' => 300, 'height' => 200]],
+                'medium' => ['resize' => ['width' => 800, 'height' => 600]],
+                'large'  => ['resize' => ['width' => 1200, 'height' => 900]],
             ],
         ],
+    ],
+
+    'log' => [
+        'level' => 'info',
+        'file'  => __DIR__ . '/logs/imago.log',
+        'max_files' => 30,
     ],
 ];
 ```
 
-### Service-specific конфиг
+### Сервисы и роутинг
 
-Можно вынести настройки сервиса в отдельный файл:
-
-```php
-// _config.php
-'services' => [
-    'pulsar' => [
-        'config' => '_config.pulsar.php',  // доп. конфиг будет смержен
-        'storage' => 'pulsar',
-    ],
-],
-
-// _config.pulsar.php — вернёт массив, который будет смержен через array_replace_recursive
-```
-
----
-
-### Процессор изображений
-
-Доступны драйверы: `gd` (через ext-gd), `imagick` (через ext-imagick) и `intervention` (через `intervention/image`). Драйвер задаётся глобально, но может быть переопределён для конкретного сервиса:
-
-```php
-'processor' => 'gd',                     // gd | imagick | intervention:gd | intervention:imagick
-
-'services' => [
-    'pulsar' => [
-        // использует глобальный драйвер
-    ],
-    'news47' => [
-        'processor' => 'imagick',        // переопределение на сервис
-    ],
-],
-```
-
-> **Перспектива**: при переходе на PHP 8.3+ станет доступен `intervention/image` v4 с нативным VipsDriver (libvips), что даст значительный прирост производительности на больших изображениях, а также `intervention/gif` для полноценной поддержки анимированных GIF.
-
----
-
-## Доменный роутинг
-
-Каждый сервис может быть привязан к одному или нескольким доменам через ключ `domains`. Если запрос приходит на соответствующий `Host`, префикс сервиса в URL не требуется.
-
-```php
-'services' => [
-    'pulsar' => [
-        'storage' => 'pulsar',                     // файлы в public/storage/pulsar/
-        'domains' => ['images.pulsar.local'],      // этот домен → сервис pulsar
-        'placeholder' => ['enabled' => true],
-    ],
-    '47news' => [
-        'storage' => '',                           // файлы прямо в public/storage/
-        'domains' => ['images.47news.local'],
-        'placeholder' => ['enabled' => true],
-    ],
-],
-```
-
-Схема работы:
-
-- Если первый сегмент пути совпадает с именем сервиса (`/pulsar/photo.jpg`) — используется **path-based** роутинг.
-- Если нет — проверяется заголовок `Imago-Host`. Если он есть (например `proxy_set_header Imago-Host pulsar`), сервис берётся из него напрямую, **без поиска по доменам**.
-- Если `Imago-Host` нет — извлекается `Host` из заголовка запроса, и сервис ищется по маппингу `domains`.
-- Если ни одно не сработало — `404 Service not found`.
-
-Это позволяет в nginx принудительно указать сервис для конкретного location:
-
-```nginx
-server {
-    listen 80;
-    server_name images.pulsar.local;
-    location / { proxy_pass http://imago_backend; }
-}
-
-server {
-    listen 80;
-    server_name images.47news.local;
-    location /archived/ {
-        proxy_set_header Imago-Host pulsar;
-        proxy_pass http://imago_backend;
-    }
-    location / { proxy_pass http://imago_backend; }
-}
-```
-
-Путь к файлу на диске: `{storage_path}/{relative_path}`. Если `storage` пустой — файлы лежат непосредственно в `public/storage/`.
-
-Пример nginx для двух доменов на одном upstream:
+Приоритет разрешения сервиса:
+1. Первый сегмент пути совпадает с именем сервиса (`/pulsar/photo.jpg`)
+2. Заголовок `Imago-Host` (например `proxy_set_header Imago-Host pulsar`)
+3. `Host` → маппинг `domains`
 
 ```nginx
 upstream imago_backend {
@@ -299,69 +143,89 @@ server {
     server_name images.pulsar.local;
     location / { proxy_pass http://imago_backend; }
 }
-
-server {
-    listen 80;
-    server_name images.47news.local;
-    location / { proxy_pass http://imago_backend; }
-}
 ```
 
-Оба домена проксируются на один и тот же сервер Imago — выбор сервиса происходит по `Host` внутри приложения.
+### Процессор
 
----
+| Драйвер | Значение `processor` | Бэкенд |
+|---------|---------------------|--------|
+| GD | `gd` | ext-gd |
+| ImageMagick | `imagick` | ext-imagick |
+| Intervention GD | `intervention:gd` | intervention/image + ext-gd |
+| Intervention Imagick | `intervention:imagick` | intervention/image + ext-imagick |
 
-## preProcess / postProcess коллбэки
+Драйвер задаётся глобально, можно переопределить на сервис:
 
-Для каждого сервиса можно задать массивы `preProcess` и `postProcess` — функций, перехватывающих запрос до и после обработки изображения. Это позволяет блокировать доступ, возвращать кастомные ответы или подменять файл.
+```php
+'processor' => 'gd',
 
-Функции вызываются в порядке объявления в массиве. Если любой коллбэк вернул не-`null` (например `false`, `string`, `array`), оставшиеся коллбэки **не вызываются** — ответ сразу отправляется клиенту.
+'services' => [
+    'pulsar' => [],                          // использует gd
+    'news47' => ['processor' => 'imagick'],  // переопределение
+],
+```
 
-Коллбэк получает `(string $storagePath, array $queryParams)` и должен вернуть:
+> **Перспектива (PHP 8.3+)**: `intervention/image` v4 с VipsDriver (libvips) и `intervention/gif` (анимированные GIF).
 
-| Возврат | Поведение |
-|---------|-----------|
-| `null` | Пропустить — продолжить нормальную обработку |
-| `false` | `403 Forbidden` |
-| `string` — существующий файл | Отдать этот файл вместо запрошенного |
-| `string` — не файл | `410 Gone` с этим текстом в теле |
-| `array{status, body, ...}` | Кастомный ответ (см. пример ниже) |
+### Service-specific конфиг
 
 ```php
 'services' => [
     'pulsar' => [
+        'config' => '_config.pulsar.php',   // будет смержен через array_replace_recursive
         'storage' => 'pulsar',
-        'preProcess' => [
-            function (string $path, array $params): null|false|string|array {
-                // Файлы за 2020-2023 — архив, отдаём плашку
-                if (preg_match('#/202[0-3]/#', $path)) {
-                    return [
-                        'status' => 410,
-                        'body' => 'The requested file has been archived '
-                            . 'and is no longer available.',
-                        'content_type' => 'text/plain; charset=utf-8',
-                    ];
-                }
-
-                // Можно подменить файл
-                // if (...) { return '/var/www/imagoV2/placeholder.png'; }
-
-                // Можно запретить
-                // if (...) { return false; }
-
-                return null; // продолжить как обычно
-            },
-        ],
     ],
 ],
 ```
 
-Если я добавлю в preProcess две функции - в каком порядке они будут выполнены?
+---
 
-В порядке объявления в массиве. foreach ($serviceConfig['preProcess'] ?? [] as $callback) — если первая вернула null, идёт вторая. 
-Как только любая вернула не-null (например false, string, array), остальные не вызываются.
+## Правила обработки (rules)
 
-Коллбэки выполняются **до** проверки кэша и обработки изображения, в порядке объявления. Первый не-`null` возврат прерывает цепочку.
+Подробно: [RULES.md](RULES.md)
+
+Кратко — профили и query-параметры преобразуются в набор правил, которые последовательно применяются к изображению:
+
+```php
+'profiles' => [
+    'thumb' => [
+        'crop'   => ['width' => 150, 'height' => 150],
+        'grayscale' => [],
+    ],
+],
+```
+
+Поддерживаемые правила: `resize`, `crop`, `rotate`, `grayscale`.
+
+---
+
+## preProcess / postProcess
+
+Массивы callbacks, перехватывающих запрос до/после обработки. Порядок вызова — объявления. Первый не-`null` возврат прерывает цепочку.
+
+| Возврат | Поведение |
+|---------|-----------|
+| `null` | Пропустить |
+| `false` | `403 Forbidden` |
+| `string` (сущ. файл) | Отдать этот файл |
+| `string` (не файл) | `410 Gone` с этим текстом |
+| `array{status,body,...}` | Кастомный ответ |
+
+```php
+'preProcess' => [
+    function (string $path, array $params): null|false|string|array {
+        if (preg_match('#/202[0-3]/#', $path)) {
+            return [
+                'status' => 410,
+                'body' => 'File archived and no longer available.',
+                'content_type' => 'text/plain; charset=utf-8',
+            ];
+        }
+        return null;
+    },
+],
+'postProcess' => [],
+```
 
 ---
 
@@ -371,42 +235,61 @@ server {
 |----------|-----|----------|
 | `width` | int | Ширина в px |
 | `height` | int | Высота в px |
-| `mode` | `resize` / `crop` | Режим обработки |
+| `mode` | `resize` / `crop` | Режим (только без profile) |
 | `profile` | string | Имя профиля из конфига |
 
-- `resize` — вписать в прямоугольник `width×height` с сохранением пропорций
-- `crop` — кадрировать до точных `width×height` (center crop)
+Если указан только `width` или `height` — недостающая копируется (квадрат).  
+Максимальный размер — 4096px (настраивается `max_dimension`).
 
-Если указан только `width` или только `height` — недостающая размерность копируется из имеющейся (квадрат).
+---
 
-**Ограничение:** максимальный размер — 4096px по каждой стороне (настраивается через `max_dimension` в конфиге).
+## Деплой
+
+```
+/var/www/imagoV2/
+├── _config.php
+├── app/
+├── bin/imago-server
+├── public/
+│   ├── cache/          #必须是 www-data:www-data, 775
+│   └── storage/        # хранилища сервисов
+├── logs/               #必须是 www-data:www-data, 775
+└── vendor/
+```
+
+### Systemd
+
+```bash
+cp imago.service /etc/systemd/system/
+systemctl daemon-reload && systemctl enable --now imago
+```
+
+### Nginx
+
+```nginx
+location /cache/ {
+    # nginx отдаёт кэш напрямую, минуя AmPHP
+    root /var/www/imagoV2/public;
+    try_files $uri @backend;
+    expires 365d;
+    add_header Cache-Control "public, immutable";
+}
+
+location / {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_set_header Host $host;
+    proxy_read_timeout 30s;
+}
+```
+
+### Redis (опционально)
+
+Ускоряет lookup кэша. При недоступности — бесшовное падение на `glob()`.
 
 ---
 
 ## Мониторинг
 
-- **Health check:** `GET /health` → `{"status":"ok","time":...}`
-- **Логи:** `logs/imago.log` (ротация каждые 100MB, хранятся 30 файлов)
-- **Systemd:** `journalctl -u imago -f`
-
----
-
-## Архитектура
-
-```
-Client → Nginx → AmPHP Server (127.0.0.1:8080)
-                    │
-                    ├─ RequestHandler → parse URI + params
-                    │       │
-                    │       ├─ CacheManager → проверка public/cache/{hash}.ext
-                    │       │       │
-                    │       │       └─ Redis (опционально, мета-данные)
-                    │       │
-                    │       ├─ ImageProcessor → GD resize/crop → cache
-                    │       │
-                    │       └─ PlaceholderGenerator → заглушка → cache
-                    │
-                    └─ Response (200, Content-Type, Cache-Control: immutable)
-```
-
-Кэш структурирован как `public/cache/{первые 2 символа md5}/{md5-хэш}.{ext}` — это предотвращает проблемы с миллионами файлов в одной директории.
+- `GET /health` → `{"status":"ok","time":...}`
+- Логи: `logs/imago.log` (ротация 100MB, 30 файлов)
+- `journalctl -u imago -f`
