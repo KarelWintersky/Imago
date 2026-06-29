@@ -24,12 +24,14 @@ final readonly class ProfileManager
             throw new \RuntimeException("Unknown profile: {$name}");
         }
 
-        $profile = $this->profiles[$name];
+        $rules = $this->profiles[$name];
+        $rule = array_key_first($rules);
+        $config = $rules[$rule];
 
         return [
-            'width' => (int) ($profile['width'] ?? 0),
-            'height' => (int) ($profile['height'] ?? 0),
-            'mode' => $profile['mode'] ?? 'resize',
+            'width' => (int) ($config['width'] ?? 0),
+            'height' => (int) ($config['height'] ?? 0),
+            'mode' => $rule,
         ];
     }
 

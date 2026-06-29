@@ -185,9 +185,9 @@ return [
                 'color' => '3d4070',         // цвет текста (hex без #)
                 'background' => 'ffffff',    // цвет фона (hex без #)
             ],
-            'profiles' => [                  // именованные профили ресайза
-                'thumb' => ['width' => 150, 'height' => 150, 'mode' => 'crop'],
-                'small' => ['width' => 300, 'height' => 200, 'mode' => 'resize'],
+            'profiles' => [                  // именованные профили обработки
+                'thumb' => ['crop' => ['width' => 150, 'height' => 150]],
+                'small' => ['resize' => ['width' => 300, 'height' => 200]],
             ],
         ],
     ],

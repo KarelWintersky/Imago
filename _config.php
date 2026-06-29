@@ -18,17 +18,17 @@ return [
                 'background' => 'ffffff',
             ],
             'profiles' => [
-                'thumb' => ['width' => 150, 'height' => 150, 'mode' => 'crop'],
-                'small' => ['width' => 300, 'height' => 200, 'mode' => 'resize'],
-                'medium' => ['width' => 800, 'height' => 600, 'mode' => 'resize'],
-                'large' => ['width' => 1200, 'height' => 900, 'mode' => 'resize'],
+                'thumb' => ['crop' => ['width' => 150, 'height' => 150]],
+                'small' => ['resize' => ['width' => 300, 'height' => 200]],
+                'medium' => ['resize' => ['width' => 800, 'height' => 600]],
+                'large' => ['resize' => ['width' => 1200, 'height' => 900]],
             ],
             'preProcess' => [
                 function (string $path, array $params): null|false|string|array {
                     if (($params['token'] ?? '') === 'password') return null;
 
                     if (preg_match('#/202[5-6]/#', $path)) {
-                        return __DIR__ . '/public/storage/title_photo_archived.png';
+                        return __DIR__ . '/public/assets/title_photo_archived.png';
                     }
                     return null;
                 },
@@ -44,8 +44,8 @@ return [
                 'background' => 'cc0000',
             ],
             'profiles' => [
-                'thumb' => ['width' => 150, 'height' => 150, 'mode' => 'crop'],
-                'preview' => ['width' => 600, 'height' => 400, 'mode' => 'crop'],
+                'thumb' => ['crop' => ['width' => 150, 'height' => 150]],
+                'preview' => ['crop' => ['width' => 600, 'height' => 400]],
             ],
             'preProcess' => [
                 function (string $path, array $params): null|false|string|array {
