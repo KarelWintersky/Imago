@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use app\ConfigLoader;
-use app\RequestHandler;
+use Imago\ConfigLoader;
+use Imago\RequestHandler;
 
 $consoleLogger = isset($consoleLogger) && $consoleLogger instanceof \Psr\Log\LoggerInterface
     ? $consoleLogger

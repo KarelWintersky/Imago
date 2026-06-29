@@ -26,7 +26,7 @@ if (!file_exists($configPath)) {
     exit(1);
 }
 
-$config = app\ConfigLoader::load($configPath);
+$config = Imago\ConfigLoader::load($configPath);
 
 $logLevel = $config['log']['level'] ?? 'info';
 $logHandler = new StreamHandler(new WritableResourceStream(STDOUT), $logLevel);
