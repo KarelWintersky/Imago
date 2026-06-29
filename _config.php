@@ -60,7 +60,12 @@ return [
                 },
             ],
             'postProcess' => [],
+            'processor' => 'imagick',
         ],
+    ],
+
+    'processor' => [
+        'driver' => 'gd',
     ],
 
     'cache' => [
