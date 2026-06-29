@@ -16,6 +16,7 @@ final class Process
                 'crop' => self::crop($image, $srcW, $srcH, $config['width'], $config['height']),
                 'resize' => self::resize($image, $srcW, $srcH, $config['width'], $config['height']),
                 'rotate' => self::rotate($image, $config['angle']),
+                'grayscale' => self::grayscale($image),
                 default => throw new \RuntimeException("Unknown GD process rule: {$rule}"),
             };
 
@@ -68,5 +69,11 @@ final class Process
         $rotated = imagerotate($image, $angle, 0);
         imagedestroy($image);
         return $rotated;
+    }
+
+    private static function grayscale(\GdImage $image): \GdImage
+    {
+        imagefilter($image, IMG_FILTER_GRAYSCALE);
+        return $image;
     }
 }

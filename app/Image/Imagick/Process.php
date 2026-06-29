@@ -13,6 +13,7 @@ final class Process
                 'crop' => $image->cropThumbnailImage($config['width'], $config['height']),
                 'resize' => $image->resizeImage($config['width'], $config['height'], \Imagick::FILTER_LANCZOS, 1, true),
                 'rotate' => $image->rotateImage(new \ImagickPixel('transparent'), $config['angle']),
+                'grayscale' => $image->modulateImage(100, 0, 100),
                 default => throw new \RuntimeException("Unknown Imagick process rule: {$rule}"),
             };
         }
