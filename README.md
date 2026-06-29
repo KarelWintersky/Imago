@@ -7,6 +7,9 @@
 GET /pulsar/photo.jpg?width=300&height=200
 GET /pulsar/photo.jpg?width=300&height=200&mode=crop
 GET /pulsar/photo.jpg?profile=thumb
+
+# Или через домен (без префикса сервиса в пути):
+# images.pulsar.local/photo.jpg?width=300
 ```
 
 ---
@@ -51,11 +54,14 @@ cp /path/to/test.jpg public/storage/pulsar/
 # Прямой запуск (AmPHP-сервер):
 php bin/imago-server
 
+# Или с явным указанием конфига:
+php public/server.php --config=_config.php
+
 # Или через PHP built-in server (только для отладки):
 php -S 0.0.0.0:8080 -t public/
 ```
 
-Сервер слушает `127.0.0.1:8080`.
+Сервер слушает `127.0.0.1:8080` (порт и хост настраиваются в конфиге).
 
 ### 5. Проверка
 
@@ -173,6 +179,7 @@ return [
     'services' => [
         'pulsar' => [
             'storage' => 'pulsar',           // поддиректория в public/storage/
+            'domains' => ['images.pulsar.local'],  // домены для роутинга без префикса
             'placeholder' => [               // заглушки вместо отсутствующих файлов
                 'enabled' => true,
                 'color' => '3d4070',         // цвет текста (hex без #)
@@ -202,6 +209,58 @@ return [
 
 // _config.pulsar.php — вернёт массив, который будет смержен через array_replace_recursive
 ```
+
+---
+
+## Доменный роутинг
+
+Каждый сервис может быть привязан к одному или нескольким доменам через ключ `domains`. Если запрос приходит на соответствующий `Host`, префикс сервиса в URL не требуется.
+
+```php
+'services' => [
+    'pulsar' => [
+        'storage' => 'pulsar',                     // файлы в public/storage/pulsar/
+        'domains' => ['images.pulsar.local'],      // этот домен → сервис pulsar
+        'placeholder' => ['enabled' => true],
+    ],
+    '47news' => [
+        'storage' => '',                           // файлы прямо в public/storage/
+        'domains' => ['images.47news.local'],
+        'placeholder' => ['enabled' => true],
+    ],
+],
+```
+
+Схема работы:
+
+- Если первый сегмент пути совпадает с именем сервиса (`/pulsar/photo.jpg`) — используется **path-based** роутинг (как и раньше).
+- Если нет — извлекается `Host` из заголовка запроса, и сервис ищется по маппингу `domains`.
+- Если ни то, ни другое — `404 Service not found`.
+
+Путь к файлу на диске: `{storage_path}/{relative_path}`. Если `storage` пустой — файлы лежат непосредственно в `public/storage/`.
+
+Пример nginx для двух доменов на одном upstream:
+
+```nginx
+upstream imago_backend {
+    server 127.0.0.1:8080;
+    keepalive 64;
+}
+
+server {
+    listen 80;
+    server_name images.pulsar.local;
+    location / { proxy_pass http://imago_backend; }
+}
+
+server {
+    listen 80;
+    server_name images.47news.local;
+    location / { proxy_pass http://imago_backend; }
+}
+```
+
+Оба домена проксируются на один и тот же сервер Imago — выбор сервиса происходит по `Host` внутри приложения.
 
 ---
 
