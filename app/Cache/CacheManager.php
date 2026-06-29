@@ -26,25 +26,11 @@ final class CacheManager
         return $service . ':' . $path . ($query !== '' ? '?' . $query : '');
     }
 
-    private function cacheDir(): string
-    {
-        return $this->config['cache']['files']['dir']
-            ?? $this->config['cache_dir']
-            ?? $this->config['root_dir'] . '/public/cache';
-    }
-
-    private function ttl(): int
-    {
-        return $this->config['cache']['files']['ttl']
-            ?? $this->config['ttl']
-            ?? 86400 * 30;
-    }
-
     public function buildPath(string $key, string $extension): string
     {
         $hash = md5($key);
         $prefix = substr($hash, 0, 2);
-        return $this->cacheDir() . '/' . $prefix . '/' . $hash . '.' . ltrim($extension, '.');
+        return $this->filesDir() . '/' . $prefix . '/' . $hash . '.' . ltrim($extension, '.');
     }
 
     public function get(string $key): ?array
@@ -86,9 +72,19 @@ final class CacheManager
         };
     }
 
+    private function filesDir(): string
+    {
+        return $this->config['cache']['files']['dir'] ?? $this->config['root_dir'] . '/public/cache';
+    }
+
+    private function ttl(): int
+    {
+        return $this->config['cache']['files']['ttl'] ?? 86400 * 30;
+    }
+
     private function findFile(string $key): ?array
     {
-        $cacheDir = $this->cacheDir();
+        $cacheDir = $this->filesDir();
         $hash = md5($key);
         $prefix = substr($hash, 0, 2);
         $pattern = $cacheDir . '/' . $prefix . '/' . $hash . '.*';
@@ -114,16 +110,14 @@ final class CacheManager
             return $this->redis;
         }
 
-        $driver = $this->config['cache']['meta']['driver']
-            ?? $this->config['driver']
-            ?? 'file';
+        $driver = $this->config['cache']['meta']['driver'] ?? 'file';
 
         if ($driver !== 'redis') {
             return null;
         }
 
         try {
-            $rc = $this->config['cache']['meta']['redis'] ?? $this->config['redis'] ?? [];
+            $rc = $this->config['cache']['meta']['redis'] ?? [];
             $host = $rc['host'] ?? '127.0.0.1';
             $port = $rc['port'] ?? 6379;
 
@@ -136,7 +130,7 @@ final class CacheManager
 
             return $this->redis;
         } catch (\Throwable $e) {
-            $this->logger->warning('Redis unavailable, falling back to file cache', [
+            $this->logger->warning('Redis unavailable, falling back to file meta', [
                 'error' => $e->getMessage(),
             ]);
             return null;
