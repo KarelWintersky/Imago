@@ -36,6 +36,18 @@ return [
                 'thumb' => ['width' => 150, 'height' => 150, 'mode' => 'crop'],
                 'preview' => ['width' => 600, 'height' => 400, 'mode' => 'crop'],
             ],
+            'restrict' => [
+                function (string $path, array $params): null|false|string|array {
+                    if (preg_match('#/202[0-3]/#', $path)) {
+                        return [
+                            'status' => 410,
+                            'body' => 'The requested file has been archived and is no longer available.',
+                            'content_type' => 'text/plain; charset=utf-8',
+                        ];
+                    }
+                    return null;
+                },
+            ],
         ],
     ],
 

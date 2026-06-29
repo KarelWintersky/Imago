@@ -100,6 +100,11 @@ final class RequestHandler
 
         parse_str($query, $params);
 
+        $preprocess = $this->runPreprocess($serviceConfig, $storagePath, $params, $fullUrl);
+        if ($preprocess !== null) {
+            return $preprocess;
+        }
+
         try {
             [$width, $height, $mode] = $this->resolveDimensions($params, $serviceConfig);
         } catch (\Throwable $e) {
@@ -169,6 +174,50 @@ final class RequestHandler
 
         $this->log('warning', "GET {$fullUrl} → 404 not found");
         return $this->errorResponse(404, 'Image not found');
+    }
+
+    private function runPreprocess(array $serviceConfig, string $storagePath, array $params, string $fullUrl): ?Response
+    {
+        foreach ($serviceConfig['restrict'] ?? [] as $callback) {
+            $result = $callback($storagePath, $params);
+
+            if ($result === null) {
+                continue;
+            }
+
+            if ($result === false) {
+                $this->log('warning', "GET {$fullUrl} → 403 restricted");
+                return $this->errorResponse(403, 'Forbidden');
+            }
+
+            if (is_string($result)) {
+                if (file_exists($result)) {
+                    $mime = CacheManager::detectMime($result);
+                    $this->log('info', "GET {$fullUrl} → 200 restricted (overridden file)");
+                    return $this->imageResponse($result, $mime);
+                }
+                $this->log('info', "GET {$fullUrl} → 410 restricted ({$result})");
+                return new Response(410, [
+                    'Content-Type' => 'text/plain; charset=utf-8',
+                    'Cache-Control' => 'no-store',
+                ], $result);
+            }
+
+            if (is_array($result)) {
+                $status = $result['status'] ?? 410;
+                $body = $result['body'] ?? 'Restricted';
+                $headers = $result['headers'] ?? [];
+                $headers['Content-Type'] ??= $result['content_type'] ?? 'text/plain; charset=utf-8';
+                $headers['Cache-Control'] ??= 'no-store';
+                $this->log('info', "GET {$fullUrl} → {$status} restricted");
+                return new Response($status, $headers, $body);
+            }
+
+            $this->log('warning', "GET {$fullUrl} → 500 invalid restrict callback return");
+            return $this->errorResponse(500, 'Invalid restriction result');
+        }
+
+        return null;
     }
 
     private function resolveDimensions(array $params, array $serviceConfig): array
