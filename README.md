@@ -214,11 +214,12 @@ return [
 
 ### Процессор изображений
 
-Доступны два драйвера: `gd` (через ext-gd) и `imagick` (через ext-imagick). Драйвер задаётся глобально, но может быть переопределён для конкретного сервиса:
+Доступны драйверы: `gd` (через ext-gd), `imagick` (через ext-imagick) и `intervention` (через `intervention/image`). Драйвер задаётся глобально, но может быть переопределён для конкретного сервиса:
 
 ```php
 'processor' => [
-    'driver' => 'gd',        // gd | imagick, по умолчанию gd
+    'driver' => 'gd',                // gd | imagick | intervention
+    'intervention_backend' => 'gd',  // gd | imagick — только для intervention
 ],
 
 'services' => [
@@ -226,10 +227,12 @@ return [
         // использует глобальный драйвер (gd)
     ],
     'news47' => [
-        'processor' => 'imagick',  // переопределение на сервис
+        'processor' => 'imagick',    // переопределение на сервис
     ],
 ],
 ```
+
+> **Перспектива**: при переходе на PHP 8.3+ станет доступен `intervention/image` v4 с нативным VipsDriver (libvips), что даст значительный прирост производительности на больших изображениях, а также `intervention/gif` для полноценной поддержки анимированных GIF.
 
 ---
 
