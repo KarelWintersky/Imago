@@ -1,6 +1,6 @@
 [Unit]
-Description=Imago Image Proxy Server
-Documentation=https://github.com/imago/imago-server
+Description=Imago (Image Proxy Server)
+Documentation=https://github.com/karelwintersky/imago
 After=network.target
 Wants=redis.service
 

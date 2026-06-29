@@ -233,9 +233,30 @@ return [
 
 Схема работы:
 
-- Если первый сегмент пути совпадает с именем сервиса (`/pulsar/photo.jpg`) — используется **path-based** роутинг (как и раньше).
-- Если нет — извлекается `Host` из заголовка запроса, и сервис ищется по маппингу `domains`.
-- Если ни то, ни другое — `404 Service not found`.
+- Если первый сегмент пути совпадает с именем сервиса (`/pulsar/photo.jpg`) — используется **path-based** роутинг.
+- Если нет — проверяется заголовок `Imago-Host`. Если он есть (например `proxy_set_header Imago-Host pulsar`), сервис берётся из него напрямую, **без поиска по доменам**.
+- Если `Imago-Host` нет — извлекается `Host` из заголовка запроса, и сервис ищется по маппингу `domains`.
+- Если ни одно не сработало — `404 Service not found`.
+
+Это позволяет в nginx принудительно указать сервис для конкретного location:
+
+```nginx
+server {
+    listen 80;
+    server_name images.pulsar.local;
+    location / { proxy_pass http://imago_backend; }
+}
+
+server {
+    listen 80;
+    server_name images.47news.local;
+    location /archived/ {
+        proxy_set_header Imago-Host pulsar;
+        proxy_pass http://imago_backend;
+    }
+    location / { proxy_pass http://imago_backend; }
+}
+```
 
 Путь к файлу на диске: `{storage_path}/{relative_path}`. Если `storage` пустой — файлы лежат непосредственно в `public/storage/`.
 

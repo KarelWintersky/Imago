@@ -78,18 +78,27 @@ final class RequestHandler
                 return $this->errorResponse(400, 'Invalid path: /{service}/{image_path} expected');
             }
         } else {
-            $host = $request->getHeader('host');
-            if ($host === null) {
-                $this->log('warning', "GET {$fullUrl} → 400 missing Host header");
-                return $this->errorResponse(400, 'Missing Host header');
-            }
+            $imagoHost = $request->getHeader('imago-host');
+            if ($imagoHost !== null) {
+                $service = $imagoHost;
+                if (!isset($this->config['services'][$service])) {
+                    $this->log('warning', "GET {$fullUrl} → 404 service '{$service}' from Imago-Host header not found");
+                    return $this->errorResponse(404, 'Service not found');
+                }
+            } else {
+                $host = $request->getHeader('host');
+                if ($host === null) {
+                    $this->log('warning', "GET {$fullUrl} → 400 missing Host header");
+                    return $this->errorResponse(400, 'Missing Host header');
+                }
 
-            $host = strtolower(explode(':', $host)[0]);
-            $service = $this->domainMap[$host] ?? null;
+                $host = strtolower(explode(':', $host)[0]);
+                $service = $this->domainMap[$host] ?? null;
 
-            if ($service === null) {
-                $this->log('warning', "GET {$fullUrl} → 404 service not found");
-                return $this->errorResponse(404, 'Service not found');
+                if ($service === null) {
+                    $this->log('warning', "GET {$fullUrl} → 404 service not found");
+                    return $this->errorResponse(404, 'Service not found');
+                }
             }
 
             $relativePath = implode('/', $parts);
