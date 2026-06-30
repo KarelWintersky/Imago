@@ -20,10 +20,7 @@ return [
             'profiles' => [
                 'thumb' => ['crop' => ['width' => 150, 'height' => 150]],
                 'small' => ['resize' => ['width' => 300, 'height' => 200]],
-                'medium' => [
-                    'resize' => ['width' => 800, 'height' => 600],
-                    'grayscale' =>  []
-                ],
+                'medium' => [ 'resize' => ['width' => 800, 'height' => 600]],
                 'large' => ['resize' => ['width' => 1200, 'height' => 900]],
                 'wm'    =>  [
                     'watermark' =>  [
@@ -39,14 +36,14 @@ return [
                 return ($params['signature'] ?? '') === $expected;
             },
             'preProcess' => [
-                /*function (string $path, array $params): null|false|string|array {
+                function (string $path, array $params): null|false|string|array {
                     if (($params['token'] ?? '') === 'password') return null;
 
                     if (preg_match('#/202[5-6]/#', $path)) {
                         return __DIR__ . '/public/assets/title_photo_archived.png';
                     }
                     return null;
-                },*/
+                },
             ],
             'postProcess' => [],
         ],
