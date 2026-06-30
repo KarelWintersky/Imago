@@ -324,3 +324,12 @@ location / {
 - `GET /health` → `{"status":"ok","time":...}`
 - Логи: `logs/imago.log` (ротация 100MB, 30 файлов)
 - `journalctl -u imago -f`
+
+# Signature - защита доступа 
+
+Всё работает:
+Сценарий	Результат
+Без signature	200 original — параметры стёрты, отдан оригинал
+?signature=md5(pulsar) без Referer	200 generated 100×67 — ресайз разрешён
+?signature=md5(referer+pulsar) c Referer	200 generated 100×67 — ресайз разрешён
+Callback получает (params, server), где server — $_SERVER + заголовки запроса, приведённые к HTTP_*. Ставить access необязательно — если ключа нет, все пропускаются.

@@ -34,6 +34,10 @@ return [
                     ],
                 ]
             ],
+            'access' => function (array $params, array $server): bool {
+                $expected = md5(($server['HTTP_REFERER'] ?? '') . 'pulsar');
+                return ($params['signature'] ?? '') === $expected;
+            },
             'preProcess' => [
                 /*function (string $path, array $params): null|false|string|array {
                     if (($params['token'] ?? '') === 'password') return null;

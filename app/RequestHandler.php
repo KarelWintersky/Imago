@@ -112,6 +112,10 @@ final class RequestHandler
 
         parse_str($query, $params);
 
+        if (!$this->runAccessCheck($serviceConfig, $params, $request)) {
+            $params = array_diff_key($params, array_flip(['width', 'height', 'mode', 'profile', 'as']));
+        }
+
         $preprocess = $this->runPreprocess($serviceConfig, $storagePath, $params, $fullUrl, $service, $relativePath);
         if ($preprocess !== null) {
             return $preprocess;
@@ -240,6 +244,22 @@ final class RequestHandler
 
         $this->log('warning', "GET {$fullUrl} → 404 not found");
         return $this->errorResponse(404, 'Image not found');
+    }
+
+    private function runAccessCheck(array $serviceConfig, array $params, Request $request): bool
+    {
+        $callback = $serviceConfig['access'] ?? null;
+        if ($callback === null) {
+            return true;
+        }
+
+        $server = $_SERVER;
+        foreach ($request->getHeaders() as $name => $values) {
+            $key = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
+            $server[$key] = $values[0] ?? '';
+        }
+
+        return (bool) $callback($params, $server);
     }
 
     private function runPreprocess(array $serviceConfig, string $storagePath, array $params, string $fullUrl, string $service, string $relativePath): ?Response
