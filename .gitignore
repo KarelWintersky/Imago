@@ -7,3 +7,5 @@
 .idea/
 .env
 _deepseek
+*.phar
+

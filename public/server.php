@@ -14,7 +14,20 @@ use Revolt\EventLoop;
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-$options = getopt('', ['config:']);
+$options = getopt('', ['config:', 'version']);
+
+if (isset($options['version'])) {
+    $versionFile = __DIR__ . '/_version';
+    if (file_exists($versionFile)) {
+        $lines = file($versionFile, FILE_IGNORE_NEW_LINES);
+        printf("Imago %s (%s) %s\n", $lines[0] ?? '?', $lines[1] ?? '?', $lines[2] ?? '?');
+    } else {
+        fwrite(STDERR, "Version file not found.\n");
+        exit(1);
+    }
+    exit(0);
+}
+
 $configPath = $options['config'] ?? null;
 
 if ($configPath === null) {

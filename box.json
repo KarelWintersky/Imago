@@ -1,0 +1,48 @@
+{
+    "chmod": "0755",
+    "compactors": [
+        "KevinGH\\Box\\Compactor\\Php",
+        "KevinGH\\Box\\Compactor\\Json"
+    ],
+    "compression": "GZ",
+    "main": "public/server.php",
+    "output": "imago_server.phar",
+    "finder": [
+        {
+            "name": "*.php",
+            "in": ["app"]
+        },
+        {
+            "name": "favicon.*",
+            "in": ["public"]
+        },
+        {
+            "name": ["*.php", "*.json", "*.h", "*.so", "*.dll", "*.html"],
+            "in": "vendor",
+            "exclude": [
+                ".github",
+                ".editorconfig",
+                "infection.json.dist",
+                ".php-cs-fixer.dist.php",
+                ".valgrindc",
+                "*.exe",
+                "*.md",
+                "LICENSE",
+                "psalm.xml",
+                "test",
+                "tests",
+                "Tests",
+                "examples",
+                ".gitignore",
+                ".hhconfig",
+                ".travis*",
+                "phpunit*",
+                "docs",
+                "doc"
+            ]
+        }
+    ],
+    "files": ["public/_version"],
+    "dump-autoload": true,
+    "check-requirements": false
+}
