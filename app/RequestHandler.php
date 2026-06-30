@@ -123,18 +123,65 @@ final class RequestHandler
         }
 
         try {
-            [$width, $height, $mode] = $this->resolveDimensions($params, $serviceConfig);
+            $rules = [];
+            $width = 0;
+            $height = 0;
+            $label = '';
+
+            if (isset($params['profile'])) {
+                $profileManager = new ProfileManager($serviceConfig);
+                if (!$profileManager->has($params['profile'])) {
+                    throw new \RuntimeException("Unknown profile: {$params['profile']}");
+                }
+                $rules = $profileManager->resolve($params['profile']);
+
+                // merge query width/height as additional rule
+                if (isset($params['width']) || isset($params['height'])) {
+                    $w = isset($params['width']) ? (int) $params['width'] : 0;
+                    $h = isset($params['height']) ? (int) $params['height'] : 0;
+                    $mode = $params['mode'] ?? 'resize';
+
+                    if ($w <= 0 && $h <= 0) {
+                        throw new \RuntimeException('Width or height must be positive');
+                    }
+                    $maxDim = $this->config['max_dimension'] ?? 4096;
+                    if ($w > $maxDim || $h > $maxDim) {
+                        throw new \RuntimeException("Dimensions exceed maximum ({$maxDim}px)");
+                    }
+
+                    $rules[$mode] = array_merge($rules[$mode] ?? [], ['width' => $w, 'height' => $h]);
+                }
+
+                foreach ($rules as $r => $c) {
+                    if (isset($c['width'])) $width = max($width, (int) $c['width']);
+                    if (isset($c['height'])) $height = max($height, (int) $c['height']);
+                }
+                $label = $params['profile'];
+            } else {
+                [$width, $height, $label] = $this->resolveDimensions($params, $serviceConfig);
+                $rules = [$label => ['width' => $width, 'height' => $height]];
+            }
         } catch (\Throwable $e) {
             $this->log('warning', "GET {$fullUrl} → 400 {$e->getMessage()}");
             return $this->errorResponse(400, $e->getMessage());
         }
 
+        $asFormat = match ($params['as'] ?? null) {
+            'webp', 'jpg', 'jpeg', 'png', 'gif' => $params['as'],
+            default => null,
+        };
+
         if (file_exists($storagePath)) {
-            if ($mode === 'original') {
-                $size = filesize($storagePath);
-                $mime = CacheManager::detectMime($storagePath);
-                $this->log('info', "GET {$fullUrl} → 200 original ({$size}B, {$mime})");
-                return $this->imageResponse($storagePath, $mime);
+            if ($label === 'original') {
+                if ($asFormat === null) {
+                    $size = filesize($storagePath);
+                    $mime = CacheManager::detectMime($storagePath);
+                    $this->log('info', "GET {$fullUrl} → 200 original ({$size}B, {$mime})");
+                    return $this->imageResponse($storagePath, $mime);
+                }
+                $rules = [];
+                $width = 0;
+                $height = 0;
             }
 
             $cacheKey = $this->cache->buildKey($service, $relativePath, $params);
@@ -145,19 +192,21 @@ final class RequestHandler
                 return $this->imageResponse($cached['path'], $cached['mime']);
             }
 
-            $extension = strtolower(pathinfo($relativePath, PATHINFO_EXTENSION)) ?: 'jpg';
+            $extension = $asFormat ?? strtolower(pathinfo($relativePath, PATHINFO_EXTENSION)) ?: 'jpg';
             $cachePath = $this->cache->buildPath($cacheKey, $extension);
 
             $start = hrtime(true);
 
-            $this->processor->process($storagePath, $cachePath, [$mode => ['width' => $width, 'height' => $height]], driver: $serviceConfig['processor'] ?? null);
+            $this->processor->process($storagePath, $cachePath, $rules, driver: $serviceConfig['processor'] ?? null);
 
             $elapsed = (int) ((hrtime(true) - $start) / 1_000_000);
 
             $mime = CacheManager::detectMime($cachePath);
             $this->cache->set($cacheKey, $cachePath, $mime);
 
-            $this->log('info', "GET {$fullUrl} → 200 generated in {$elapsed}ms ({$width}x{$height}, {$mode})");
+            $logDims = $width ? "{$width}x{$height}" : $label;
+            $logExtra = $asFormat !== null ? " as {$asFormat}" : '';
+            $this->log('info', "GET {$fullUrl} → 200 generated in {$elapsed}ms ({$logDims}{$logExtra})");
             return $this->imageResponse($cachePath, $mime);
         }
 
@@ -315,16 +364,6 @@ final class RequestHandler
 
     private function resolveDimensions(array $params, array $serviceConfig): array
     {
-        if (isset($params['profile'])) {
-            $pm = new ProfileManager($serviceConfig);
-
-            if (!$pm->has($params['profile'])) {
-                throw new \RuntimeException("Unknown profile: {$params['profile']}");
-            }
-
-            return array_values($pm->resolve($params['profile']));
-        }
-
         $width = isset($params['width']) ? (int) $params['width'] : 0;
         $height = isset($params['height']) ? (int) $params['height'] : 0;
         $mode = $params['mode'] ?? 'resize';

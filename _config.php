@@ -20,7 +20,10 @@ return [
             'profiles' => [
                 'thumb' => ['crop' => ['width' => 150, 'height' => 150]],
                 'small' => ['resize' => ['width' => 300, 'height' => 200]],
-                'medium' => ['resize' => ['width' => 800, 'height' => 600]],
+                'medium' => [
+                    'resize' => ['width' => 800, 'height' => 600],
+                    'grayscale' =>  []
+                ],
                 'large' => ['resize' => ['width' => 1200, 'height' => 900]],
                 'wm'    =>  [
                     'watermark' =>  [
@@ -29,8 +32,7 @@ return [
                         'height'    =>  150,
                         'gap'       =>  50
                     ],
-                    'resize'    =>  [ 'width' => 800, 'height' => 600 ]
-                ],
+                ]
             ],
             'preProcess' => [
                 /*function (string $path, array $params): null|false|string|array {
