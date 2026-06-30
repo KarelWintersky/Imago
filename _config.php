@@ -59,7 +59,7 @@ return [
                 'preview' => ['crop' => ['width' => 600, 'height' => 400]],
             ],
             'preProcess' => [
-                /*function (string $path, array $params): null|false|string|array {
+                function (string $path, array $params): null|false|string|array {
                     if (preg_match('#/202[5-6]/#', $path)) {
                         return [
                             'status' => 410,
@@ -68,7 +68,7 @@ return [
                         ];
                     }
                     return null;
-                },*/
+                },
             ],
             'postProcess' => [],
             'processor' => 'imagick',

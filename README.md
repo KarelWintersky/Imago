@@ -227,6 +227,37 @@ server {
 'postProcess' => [],
 ```
 
+Или 
+```php
+'preProcess' => [
+    function (string $path, array $params): null|false|string|array {
+        if (preg_match('#/202[5-6]/#', $path)) {
+            return [
+                'status' => 410,
+                'body' => 'The requested file has been archived and is no longer available.',
+                'content_type' => 'text/plain; charset=utf-8',
+            ];
+        }
+        return null;
+    },
+],
+```
+
+или
+```php
+'preProcess' => [
+    function (string $path, array $params): null|false|string|array {
+        if (($params['token'] ?? '') === 'password') return null; // токен подставляют только админы
+
+        if (preg_match('#/202[5-6]/#', $path)) {
+            return __DIR__ . '/public/assets/title_photo_archived.png';
+        }
+        return null;
+    },
+],
+```
+
+
 ---
 
 ## Параметры запроса
